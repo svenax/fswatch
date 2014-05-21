@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2014, Enrico M. Crisostomo
  *
  * This program is free software; you can redistribute it and/or modify
@@ -55,6 +55,7 @@ static bool kflag = false;
 static bool lflag = false;
 static bool Lflag = false;
 static bool nflag = false;
+static bool oflag = false;
 static bool pflag = false;
 static bool rflag = false;
 static bool tflag = false;
@@ -97,6 +98,7 @@ static void usage()
   cout << " -l, --latency=DOUBLE  Set the latency.\n";
   cout << " -L, --follow-links    Follow symbolic links.\n";
   cout << " -n, --numeric         Print a numeric event mask.\n";
+  cout << " -o, --one-trigger     Output a single message for the entire set.\n";
   cout << " -p, --poll            Use the poll monitor.\n";
   cout << " -r, --recursive       Recurse subdirectories.\n";
   cout << " -t, --timestamp       Print the event timestamp.\n";
@@ -119,7 +121,7 @@ static void usage()
 #  ifdef HAVE_SYS_EVENT_H
   option_string += "k";
 #  endif
-  option_string += "lLnprtuvx";
+  option_string += "lLnportuvx";
   option_string += "]";
 
   cout << PACKAGE_STRING << "\n\n";
@@ -140,6 +142,7 @@ static void usage()
   cout << " -l  Set the latency.\n";
   cout << " -L  Follow symbolic links.\n";
   cout << " -n  Print a numeric event masks.\n";
+  cout << " -o  Output a single message for the entire set.\n";
   cout << " -p  Use the poll monitor.\n";
   cout << " -r  Recurse subdirectories.\n";
   cout << " -t  Print the event timestamp.\n";
@@ -318,15 +321,8 @@ static void print_event_flags(const vector<event_flag> &flags)
 
 static void process_events(const vector<event> &events)
 {
-  for (const event &evt : events)
-  {
-    vector<event_flag> flags = evt.get_flags();
-
-    if (tflag) print_event_timestamp(evt.get_time());
-
-    cout << evt.get_path();
-
-    if (xflag) print_event_flags(flags);
+  if (oflag) {
+    cout << "Run";
 
     if (_0flag)
     {
@@ -338,7 +334,31 @@ static void process_events(const vector<event> &events)
       cout << endl;
     }
   }
-  
+  else
+  {
+    for (const event &evt : events)
+    {
+      vector<event_flag> flags = evt.get_flags();
+
+      if (tflag) print_event_timestamp(evt.get_time());
+
+      cout << evt.get_path();
+
+      if (xflag) print_event_flags(flags);
+
+      if (_0flag)
+      {
+        cout << '\0';
+        cout.flush();
+      }
+      else
+      {
+        cout << endl;
+      }
+    }
+  }
+
+
   if (_1flag)
   {
     ::exit(FSW_EXIT_OK);
@@ -398,7 +418,7 @@ static void parse_opts(int argc, char ** argv)
   int ch;
   ostringstream short_options;
 
-  short_options << "01f:hkl:Lnprtuvx";
+  short_options << "01f:hkl:Lnoprtuvx";
 #ifdef HAVE_REGCOMP
   short_options << "e:Ei";
 #endif
@@ -426,6 +446,7 @@ static void parse_opts(int argc, char ** argv)
     { "latency", required_argument, nullptr, 'l'},
     { "follow-links", no_argument, nullptr, 'L'},
     { "numeric", no_argument, nullptr, 'n'},
+    { "one-set", no_argument, nullptr, 'o'},
     { "poll", no_argument, nullptr, 'p'},
     { "recursive", no_argument, nullptr, 'r'},
     { "timestamp", no_argument, nullptr, 't'},
@@ -456,7 +477,7 @@ static void parse_opts(int argc, char ** argv)
     case '1':
       _1flag = true;
       break;
-      
+
 #ifdef HAVE_REGCOMP
     case 'e':
       exclude_regex.push_back(optarg);
@@ -512,6 +533,10 @@ static void parse_opts(int argc, char ** argv)
       pflag = true;
       break;
 
+    case 'o':
+      oflag = true;
+      break;
+
     case 'r':
       rflag = true;
       break;
@@ -556,7 +581,7 @@ int main(int argc, char ** argv)
     cerr << "-k and -p are mutually exclusive." << endl;
     ::exit(FSW_EXIT_OPT);
   }
-  
+
   // configure and start the monitor
   try
   {
